@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmacia El Ahorro - Sistema de Gestión</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #0d6efd;
+            color: white;
+            font-weight: bold;
+        }
+        .dashboard-card {
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .action-buttons .btn {
+            margin-right: 5px;
+        }
+        .search-form {
+            margin-bottom: 20px;
+        }
+        .alert {
+            margin-top: 20px;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary rounded mb-4">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#"><i class="bi bi-prescription2"></i> Farmacia El Ahorro</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('dashboard')">Inicio</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('productos')">Productos</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('clientes')">Clientes</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('proveedores')">Proveedores</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showSection('empleados')">Empleados</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Alertas -->
+        <div id="alertContainer"></div>
+
+        <!-- Secciones -->
+        <div id="dashboard" class="section">
+            <h2 class="mb-4">Dashboard</h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card dashboard-card text-center" onclick="showSection('productos')">
+                        <div class="card-body">
+                            <h5><i class="bi bi-capsule"></i> Productos</h5>
+                            <h3 id="productCount">0</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card text-center" onclick="showSection('clientes')">
+                        <div class="card-body">
+                            <h5><i class="bi bi-people"></i> Clientes</h5>
+                            <h3 id="clientCount">0</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card text-center" onclick="showSection('proveedores')">
+                        <div class="card-body">
+                            <h5><i class="bi bi-truck"></i> Proveedores</h5>
+                            <h3 id="providerCount">0</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card text-center" onclick="showSection('empleados')">
+                        <div class="card-body">
+                            <h5><i class="bi bi-person-badge"></i> Empleados</h5>
+                            <h3 id="employeeCount">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección Productos -->
+        <div id="productos" class="section" style="display: none;">
+            <h2 class="mb-4">Gestión de Productos</h2>
+            <div class="d-flex justify-content-between mb-3">
+                <form class="d-flex search-form">
+                    <input class="form-control me-2" type="search" id="searchProduct" placeholder="Buscar producto..." aria-label="Search">
+                    <button class="btn btn-outline-primary" type="button" onclick="searchProducts()">Buscar</button>
+                </form>
+                <button class="btn btn-success" onclick="showProductForm()"><i class="bi bi-plus-circle"></i> Nuevo Producto</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Stock</th>
+                            <th>Precio Unitario</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productTableBody">
+                        <!-- Los productos se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Formulario de Producto -->
+        <div id="productFormSection" style="display: none;">
+            <h2 class="mb-4" id="productFormTitle">Nuevo Producto</h2>
+            <div class="card">
+                <div class="card-body">
+                    <form id="productForm">
+                        <input type="hidden" id="productId">
+                        <div class="mb-3">
+                            <label for="productName" class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" id="productName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productStock" class="form-label">Stock</label>
+                            <input type="number" class="form-control" id="productStock" value="0">
+                        </div>
+                        <div class="mb-3">
+                            <label for="productPrice" class="form-label">Precio Unitario</label>
+                            <input type="number" step="0.01" class="form-control" id="productPrice" value="0.0">
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="saveProduct()">Guardar</button>
+                        <button type="button" class="btn btn-secondary" onclick="showSection('productos')">Cancelar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección Clientes -->
+        <div id="clientes" class="section" style="display: none;">
+            <h2 class="mb-4">Gestión de Clientes</h2>
+            <div class="d-flex justify-content-between mb-3">
+                <form class="d-flex search-form">
+                    <input class="form-control me-2" type="search" id="searchClient" placeholder="Buscar cliente..." aria-label="Search">
+                    <button class="btn btn-outline-primary" type="button" onclick="searchClients()">Buscar</button>
+                </form>
+                <button class="btn btn-success" onclick="showClientForm()"><i class="bi bi-plus-circle"></i> Nuevo Cliente</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientTableBody">
+                        <!-- Los clientes se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Formulario de Cliente -->
+        <div id="clientFormSection" style="display: none;">
+            <h2 class="mb-4" id="clientFormTitle">Nuevo Cliente</h2>
+            <div class="card">
+                <div class="card-body">
+                    <form id="clientForm">
+                        <input type="hidden" id="clientId">
+                        <div class="mb-3">
+                            <label for="clientName" class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" id="clientName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientPhone" class="form-label">Teléfono</label>
+                            <input type="text" class="form-control" id="clientPhone">
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="saveClient()">Guardar</button>
+                        <button type="button" class="btn btn-secondary" onclick="showSection('clientes')">Cancelar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección Proveedores -->
+        <div id="proveedores" class="section" style="display: none;">
+            <h2 class="mb-4">Gestión de Proveedores</h2>
+            <div class="d-flex justify-content-between mb-3">
+                <form class="d-flex search-form">
+                    <input class="form-control me-2" type="search" id="searchProvider" placeholder="Buscar proveedor..." aria-label="Search">
+                    <button class="btn btn-outline-primary" type="button" onclick="searchProviders()">Buscar</button>
+                </form>
+                <button class="btn btn-success" onclick="showProviderForm()"><i class="bi bi-plus-circle"></i> Nuevo Proveedor</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="providerTableBody">
+                        <!-- Los proveedores se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Formulario de Proveedor -->
+        <div id="providerFormSection" style="display: none;">
+            <h2 class="mb-4" id="providerFormTitle">Nuevo Proveedor</h2>
+            <div class="card">
+                <div class="card-body">
+                    <form id="providerForm">
+                        <input type="hidden" id="providerId">
+                        <div class="mb-3">
+                            <label for="providerName" class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" id="providerName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="providerContact" class="form-label">Contacto</label>
+                            <input type="text" class="form-control" id="providerContact">
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="saveProvider()">Guardar</button>
+                        <button type="button" class="btn btn-secondary" onclick="showSection('proveedores')">Cancelar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección Empleados -->
+        <div id="empleados" class="section" style="display: none;">
+            <h2 class="mb-4">Gestión de Empleados</h2>
+            <div class="d-flex justify-content-between mb-3">
+                <form class="d-flex search-form">
+                    <input class="form-control me-2" type="search" id="searchEmployee" placeholder="Buscar empleado..." aria-label="Search">
+                    <button class="btn btn-outline-primary" type="button" onclick="searchEmployees()">Buscar</button>
+                </form>
+                <button class="btn btn-success" onclick="showEmployeeForm()"><i class="bi bi-plus-circle"></i> Nuevo Empleado</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Cargo</th>
+                            <th>Salario</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeeTableBody">
+                        <!-- Los empleados se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Formulario de Empleado -->
+        <div id="employeeFormSection" style="display: none;">
+            <h2 class="mb-4" id="employeeFormTitle">Nuevo Empleado</h2>
+            <div class="card">
+                <div class="card-body">
+                    <form id="employeeForm">
+                        <input type="hidden" id="employeeId">
+                        <div class="mb-3">
+                            <label for="employeeName" class="form-label">Nombre *</label>
+                            <input type="text" class="form-control" id="employeeName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="employeePosition" class="form-label">Cargo</label>
+                            <input type="text" class="form-control" id="employeePosition">
+                        </div>
+                        <div class="mb-3">
+                            <label for="employeeSalary" class="form-label">Salario</label>
+                            <input type="number" step="0.01" class="form-control" id="employeeSalary" value="0.0">
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="saveEmployee()">Guardar</button>
+                        <button type="button" class="btn btn-secondary" onclick="showSection('empleados')">Cancelar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Código JavaScript -->
+    <script>
+        // Variables globales
+        let db = null;
+        let currentSection = 'dashboard';
+
+        // Inicializar la base de datos cuando se carga la página
+        window.onload = function() {
+            initDatabase();
+        };
+
+        // Inicializar la base de datos SQL.js
+        function initDatabase() {
+            // Configurar SQL.js
+            const config = {
+                locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${filename}`
+            };
+            
+            // Inicializar la base de datos
+            initSqlJs(config).then(function(SQL) {
+                db = new SQL.Database();
+                createTables();
+                updateCounts();
+                loadProducts();
+                loadClients();
+                loadProviders();
+                loadEmployees();
+            }).catch(function(err) {
+                showAlert('Error al inicializar la base de datos: ' + err.message, 'danger');
+            });
+        }
+
+        // Crear tablas si no existen
+        function createTables() {
+            // Tabla de productos
+            db.run(`
+                CREATE TABLE IF NOT EXISTS producto (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    stock INTEGER NOT NULL DEFAULT 0,
+                    precio_unitario REAL NOT NULL DEFAULT 0.0
+                )
+            `);
+
+            // Tabla de clientes
+            db.run(`
+                CREATE TABLE IF NOT EXISTS cliente (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    telefono TEXT
+                )
+            `);
+
+            // Tabla de proveedores
+            db.run(`
+                CREATE TABLE IF NOT EXISTS proveedor (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    contacto TEXT
+                )
+            `);
+
+            // Tabla de empleados
+            db.run(`
+                CREATE TABLE IF NOT EXISTS empleado (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    cargo TEXT,
+                    salario REAL
+                )
+            `);
+        }
+
+        // Mostrar sección específica
+        function showSection(sectionId) {
+            // Ocultar todas las secciones
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.getElementById('productFormSection').style.display = 'none';
+            document.getElementById('clientFormSection').style.display = 'none';
+            document.getElementById('providerFormSection').style.display = 'none';
+            document.getElementById('employeeFormSection').style.display = 'none';
+
+            // Mostrar la sección solicitada
+            if (sectionId === 'productos') {
+                document.getElementById('productos').style.display = 'block';
+                loadProducts();
+            } else if (sectionId === 'clientes') {
+                document.getElementById('clientes').style.display = 'block';
+                loadClients();
+            } else if (sectionId === 'proveedores') {
+                document.getElementById('proveedores').style.display = 'block';
+                loadProviders();
+            } else if (sectionId === 'empleados') {
+                document.getElementById('empleados').style.display = 'block';
+                loadEmployees();
+            } else {
+                document.getElementById('dashboard').style.display = 'block';
+                updateCounts();
+            }
+
+            currentSection = sectionId;
+        }
+
+        // Actualizar contadores del dashboard
+        function updateCounts() {
+            // Contar productos
+            const productStmt = db.prepare("SELECT COUNT(*) as count FROM producto");
+            productStmt.step();
+            const productCount = productStmt.getAsObject().count;
+            document.getElementById('productCount').textContent = productCount;
+            productStmt.free();
+
+            // Contar clientes
+            const clientStmt = db.prepare("SELECT COUNT(*) as count FROM cliente");
+            clientStmt.step();
+            const clientCount = clientStmt.getAsObject().count;
+            document.getElementById('clientCount').textContent = clientCount;
+            clientStmt.free();
+
+            // Contar proveedores
+            const providerStmt = db.prepare("SELECT COUNT(*) as count FROM proveedor");
+            providerStmt.step();
+            const providerCount = providerStmt.getAsObject().count;
+            document.getElementById('providerCount').textContent = providerCount;
+            providerStmt.free();
+
+            // Contar empleados
+            const employeeStmt = db.prepare("SELECT COUNT(*) as count FROM empleado");
+            employeeStmt.step();
+            const employeeCount = employeeStmt.getAsObject().count;
+            document.getElementById('employeeCount').textContent = employeeCount;
+            employeeStmt.free();
+        }
+
+        // Mostrar alerta
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertId = 'alert-' + Date.now();
+            const alertHTML = `
+                <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            alertContainer.innerHTML = alertHTML;
+            
+            // Auto-cerrar la alerta después de 5 segundos
+            setTimeout(() => {
+                const alert = document.getElementById(alertId);
+                if (alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
+
+        // ========== FUNCIONES PARA PRODUCTOS ==========
+        function loadProducts(query = '') {
+            let stmt;
+            if (query) {
+                stmt = db.prepare("SELECT * FROM producto WHERE nombre LIKE ? ORDER BY id");
+                stmt.bind(['%' + query + '%']);
+            } else {
+                stmt = db.prepare("SELECT * FROM producto ORDER BY id");
+            }
+            
+            const tableBody = document.getElementById('productTableBody');
+            tableBody.innerHTML = '';
+            
+            while (stmt.step()) {
+                const row = stmt.getAsObject();
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.nombre}</td>
+                    <td>${row.stock}</td>
+                    <td>$${parseFloat(row.precio_unitario).toFixed(2)}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-warning" onclick="editProduct(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProduct(${row.id})"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            }
+            stmt.free();
+        }
+
+        function searchProducts() {
+            const query = document.getElementById('searchProduct').value;
+            loadProducts(query);
+        }
+
+        function showProductForm(productId = null) {
+            document.getElementById('productos').style.display = 'none';
+            document.getElementById('productFormSection').style.display = 'block';
+            
+            if (productId) {
+                document.getElementById('productFormTitle').textContent = 'Editar Producto';
+                const stmt = db.prepare("SELECT * FROM producto WHERE id = ?");
+                stmt.bind([productId]);
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    document.getElementById('productId').value = row.id;
+                    document.getElementById('productName').value = row.nombre;
+                    document.getElementById('productStock').value = row.stock;
+                    document.getElementById('productPrice').value = row.precio_unitario;
+                }
+                stmt.free();
+            } else {
+                document.getElementById('productFormTitle').textContent = 'Nuevo Producto';
+                document.getElementById('productForm').reset();
+                document.getElementById('productId').value = '';
+            }
+        }
+
+        function saveProduct() {
+            const id = document.getElementById('productId').value;
+            const nombre = document.getElementById('productName').value;
+            const stock = document.getElementById('productStock').value || 0;
+            const precio = document.getElementById('productPrice').value || 0.0;
+            
+            if (!nombre) {
+                showAlert('El nombre es obligatorio.', 'danger');
+                return;
+            }
+            
+            if (id) {
+                // Actualizar producto existente
+                const stmt = db.prepare("UPDATE producto SET nombre = ?, stock = ?, precio_unitario = ? WHERE id = ?");
+                stmt.run([nombre, stock, precio, id]);
+                stmt.free();
+                showAlert('Producto actualizado correctamente.', 'success');
+            } else {
+                // Insertar nuevo producto
+                const stmt = db.prepare("INSERT INTO producto (nombre, stock, precio_unitario) VALUES (?, ?, ?)");
+                stmt.run([nombre, stock, precio]);
+                stmt.free();
+                showAlert('Producto agregado correctamente.', 'success');
+            }
+            
+            showSection('productos');
+            updateCounts();
+        }
+
+        function editProduct(id) {
+            showProductForm(id);
+        }
+
+        function deleteProduct(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+                const stmt = db.prepare("DELETE FROM producto WHERE id = ?");
+                stmt.run([id]);
+                stmt.free();
+                showAlert('Producto eliminado.', 'info');
+                loadProducts();
+                updateCounts();
+            }
+        }
+
+        // ========== FUNCIONES PARA CLIENTES ==========
+        function loadClients(query = '') {
+            let stmt;
+            if (query) {
+                stmt = db.prepare("SELECT * FROM cliente WHERE nombre LIKE ? ORDER BY id");
+                stmt.bind(['%' + query + '%']);
+            } else {
+                stmt = db.prepare("SELECT * FROM cliente ORDER BY id");
+            }
+            
+            const tableBody = document.getElementById('clientTableBody');
+            tableBody.innerHTML = '';
+            
+            while (stmt.step()) {
+                const row = stmt.getAsObject();
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.nombre}</td>
+                    <td>${row.telefono || ''}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-warning" onclick="editClient(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteClient(${row.id})"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            }
+            stmt.free();
+        }
+
+        function searchClients() {
+            const query = document.getElementById('searchClient').value;
+            loadClients(query);
+        }
+
+        function showClientForm(clientId = null) {
+            document.getElementById('clientes').style.display = 'none';
+            document.getElementById('clientFormSection').style.display = 'block';
+            
+            if (clientId) {
+                document.getElementById('clientFormTitle').textContent = 'Editar Cliente';
+                const stmt = db.prepare("SELECT * FROM cliente WHERE id = ?");
+                stmt.bind([clientId]);
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    document.getElementById('clientId').value = row.id;
+                    document.getElementById('clientName').value = row.nombre;
+                    document.getElementById('clientPhone').value = row.telefono || '';
+                }
+                stmt.free();
+            } else {
+                document.getElementById('clientFormTitle').textContent = 'Nuevo Cliente';
+                document.getElementById('clientForm').reset();
+                document.getElementById('clientId').value = '';
+            }
+        }
+
+        function saveClient() {
+            const id = document.getElementById('clientId').value;
+            const nombre = document.getElementById('clientName').value;
+            const telefono = document.getElementById('clientPhone').value;
+            
+            if (!nombre) {
+                showAlert('El nombre es obligatorio.', 'danger');
+                return;
+            }
+            
+            if (id) {
+                // Actualizar cliente existente
+                const stmt = db.prepare("UPDATE cliente SET nombre = ?, telefono = ? WHERE id = ?");
+                stmt.run([nombre, telefono, id]);
+                stmt.free();
+                showAlert('Cliente actualizado correctamente.', 'success');
+            } else {
+                // Insertar nuevo cliente
+                const stmt = db.prepare("INSERT INTO cliente (nombre, telefono) VALUES (?, ?)");
+                stmt.run([nombre, telefono]);
+                stmt.free();
+                showAlert('Cliente agregado correctamente.', 'success');
+            }
+            
+            showSection('clientes');
+            updateCounts();
+        }
+
+        function editClient(id) {
+            showClientForm(id);
+        }
+
+        function deleteClient(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
+                const stmt = db.prepare("DELETE FROM cliente WHERE id = ?");
+                stmt.run([id]);
+                stmt.free();
+                showAlert('Cliente eliminado.', 'info');
+                loadClients();
+                updateCounts();
+            }
+        }
+
+        // ========== FUNCIONES PARA PROVEEDORES ==========
+        function loadProviders(query = '') {
+            let stmt;
+            if (query) {
+                stmt = db.prepare("SELECT * FROM proveedor WHERE nombre LIKE ? ORDER BY id");
+                stmt.bind(['%' + query + '%']);
+            } else {
+                stmt = db.prepare("SELECT * FROM proveedor ORDER BY id");
+            }
+            
+            const tableBody = document.getElementById('providerTableBody');
+            tableBody.innerHTML = '';
+            
+            while (stmt.step()) {
+                const row = stmt.getAsObject();
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.nombre}</td>
+                    <td>${row.contacto || ''}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-warning" onclick="editProvider(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProvider(${row.id})"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            }
+            stmt.free();
+        }
+
+        function searchProviders() {
+            const query = document.getElementById('searchProvider').value;
+            loadProviders(query);
+        }
+
+        function showProviderForm(providerId = null) {
+            document.getElementById('proveedores').style.display = 'none';
+            document.getElementById('providerFormSection').style.display = 'block';
+            
+            if (providerId) {
+                document.getElementById('providerFormTitle').textContent = 'Editar Proveedor';
+                const stmt = db.prepare("SELECT * FROM proveedor WHERE id = ?");
+                stmt.bind([providerId]);
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    document.getElementById('providerId').value = row.id;
+                    document.getElementById('providerName').value = row.nombre;
+                    document.getElementById('providerContact').value = row.contacto || '';
+                }
+                stmt.free();
+            } else {
+                document.getElementById('providerFormTitle').textContent = 'Nuevo Proveedor';
+                document.getElementById('providerForm').reset();
+                document.getElementById('providerId').value = '';
+            }
+        }
+
+        function saveProvider() {
+            const id = document.getElementById('providerId').value;
+            const nombre = document.getElementById('providerName').value;
+            const contacto = document.getElementById('providerContact').value;
+            
+            if (!nombre) {
+                showAlert('El nombre es obligatorio.', 'danger');
+                return;
+            }
+            
+            if (id) {
+                // Actualizar proveedor existente
+                const stmt = db.prepare("UPDATE proveedor SET nombre = ?, contacto = ? WHERE id = ?");
+                stmt.run([nombre, contacto, id]);
+                stmt.free();
+                showAlert('Proveedor actualizado correctamente.', 'success');
+            } else {
+                // Insertar nuevo proveedor
+                const stmt = db.prepare("INSERT INTO proveedor (nombre, contacto) VALUES (?, ?)");
+                stmt.run([nombre, contacto]);
+                stmt.free();
+                showAlert('Proveedor agregado correctamente.', 'success');
+            }
+            
+            showSection('proveedores');
+            updateCounts();
+        }
+
+        function editProvider(id) {
+            showProviderForm(id);
+        }
+
+        function deleteProvider(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este proveedor?')) {
+                const stmt = db.prepare("DELETE FROM proveedor WHERE id = ?");
+                stmt.run([id]);
+                stmt.free();
+                showAlert('Proveedor eliminado.', 'info');
+                loadProviders();
+                updateCounts();
+            }
+        }
+
+        // ========== FUNCIONES PARA EMPLEADOS ==========
+        function loadEmployees(query = '') {
+            let stmt;
+            if (query) {
+                stmt = db.prepare("SELECT * FROM empleado WHERE nombre LIKE ? ORDER BY id");
+                stmt.bind(['%' + query + '%']);
+            } else {
+                stmt = db.prepare("SELECT * FROM empleado ORDER BY id");
+            }
+            
+            const tableBody = document.getElementById('employeeTableBody');
+            tableBody.innerHTML = '';
+            
+            while (stmt.step()) {
+                const row = stmt.getAsObject();
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.id}</td>
+                    <td>${row.nombre}</td>
+                    <td>${row.cargo || ''}</td>
+                    <td>$${parseFloat(row.salario || 0).toFixed(2)}</td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-warning" onclick="editEmployee(${row.id})"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${row.id})"><i class="bi bi-trash"></i></button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            }
+            stmt.free();
+        }
+
+        function searchEmployees() {
+            const query = document.getElementById('searchEmployee').value;
+            loadEmployees(query);
+        }
+
+        function showEmployeeForm(employeeId = null) {
+            document.getElementById('empleados').style.display = 'none';
+            document.getElementById('employeeFormSection').style.display = 'block';
+            
+            if (employeeId) {
+                document.getElementById('employeeFormTitle').textContent = 'Editar Empleado';
+                const stmt = db.prepare("SELECT * FROM empleado WHERE id = ?");
+                stmt.bind([employeeId]);
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    document.getElementById('employeeId').value = row.id;
+                    document.getElementById('employeeName').value = row.nombre;
+                    document.getElementById('employeePosition').value = row.cargo || '';
+                    document.getElementById('employeeSalary').value = row.salario || 0.0;
+                }
+                stmt.free();
+            } else {
+                document.getElementById('employeeFormTitle').textContent = 'Nuevo Empleado';
+                document.getElementById('employeeForm').reset();
+                document.getElementById('employeeId').value = '';
+            }
+        }
+
+        function saveEmployee() {
+            const id = document.getElementById('employeeId').value;
+            const nombre = document.getElementById('employeeName').value;
+            const cargo = document.getElementById('employeePosition').value;
+            const salario = document.getElementById('employeeSalary').value || 0.0;
+            
+            if (!nombre) {
+                showAlert('El nombre es obligatorio.', 'danger');
+                return;
+            }
+            
+            if (id) {
+                // Actualizar empleado existente
+                const stmt = db.prepare("UPDATE empleado SET nombre = ?, cargo = ?, salario = ? WHERE id = ?");
+                stmt.run([nombre, cargo, salario, id]);
+                stmt.free();
+                showAlert('Empleado actualizado correctamente.', 'success');
+            } else {
+                // Insertar nuevo empleado
+                const stmt = db.prepare("INSERT INTO empleado (nombre, cargo, salario) VALUES (?, ?, ?)");
+                stmt.run([nombre, cargo, salario]);
+                stmt.free();
+                showAlert('Empleado agregado correctamente.', 'success');
+            }
+            
+            showSection('empleados');
+            updateCounts();
+        }
+
+        function editEmployee(id) {
+            showEmployeeForm(id);
+        }
+
+        function deleteEmployee(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este empleado?')) {
+                const stmt = db.prepare("DELETE FROM empleado WHERE id = ?");
+                stmt.run([id]);
+                stmt.free();
+                showAlert('Empleado eliminado.', 'info');
+                loadEmployees();
+                updateCounts();
+            }
+        }
+    </script>
+</body>
+</html>
